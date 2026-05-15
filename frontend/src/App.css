@@ -24,10 +24,117 @@
   margin-top: 2px;
 }
 
+.map-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .map {
   width: 100%;
   height: 320px;
-  flex-shrink: 0;
+}
+
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 16px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.map-overlay-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: all;
+  backdrop-filter: blur(4px);
+}
+
+.btn-overlay-cancel {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-my-location {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  background: white;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  transition: transform 0.15s;
+}
+
+.btn-my-location:hover {
+  transform: scale(1.08);
+}
+
+.btn-my-location.locating {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 내 위치 파란 점 */
+.my-location-dot {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.my-location-dot::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  background: #2563eb;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  position: relative;
+  z-index: 1;
+}
+
+.my-location-pulse {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: rgba(37, 99, 235, 0.2);
+  border-radius: 50%;
+  animation: pulse 2s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
 }
 
 .cafe-list {
@@ -126,6 +233,48 @@
   margin-bottom: 4px;
 }
 
+.modal-sub {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.location-badge {
+  background: #eff6ff;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.input-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.price-input-wrap {
+  position: relative;
+}
+
+.price-input-wrap .input {
+  padding-right: 36px;
+}
+
+.price-unit {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-60%);
+  font-size: 15px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 .input {
   display: block;
   width: 100%;
@@ -168,4 +317,10 @@
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.btn-submit:disabled {
+  background: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
 }
