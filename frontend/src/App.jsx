@@ -1,29 +1,81 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
-const SAMPLE_CAFES = [
-  { id: 1, name: '메가커피 강남역점', address: '서울 강남구 강남대로 396', price: 1500, lat: 37.4979, lng: 127.0276 },
-  { id: 2, name: '컴포즈커피 강남역점', address: '서울 서초구 강남대로 373', price: 1500, lat: 37.4962, lng: 127.0282 },
-  { id: 3, name: '빽다방 강남역점', address: '서울 강남구 강남대로 438', price: 1500, lat: 37.4990, lng: 127.0272 },
-  { id: 4, name: '스타벅스 강남역점', address: '서울 서초구 강남대로 385', price: 4700, lat: 37.4969, lng: 127.0279 },
-]
+const API = import.meta.env.VITE_API_URL
 
 export default function App() {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
   const reportModeRef = useRef(false)
   const myLocationMarkerRef = useRef(null)
+  const markersRef = useRef([])
+
+  const [cafes, setCafes] = useState([])
+  const [loading, setLoading] = useState(true)
   const [selectedCafe, setSelectedCafe] = useState(null)
   const [reportMode, setReportMode] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [reportLocation, setReportLocation] = useState(null)
   const [cafeName, setCafeName] = useState('')
   const [cafePrice, setCafePrice] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [locating, setLocating] = useState(false)
 
   const setReportModeSync = (val) => {
     reportModeRef.current = val
     setReportMode(val)
+  }
+
+  const fetchCafes = async () => {
+    try {
+      const res = await fetch(`${API}/cafes`)
+      const data = await res.json()
+      setCafes(data)
+      return data
+    } catch (e) {
+      console.error('카페 불러오기 실패', e)
+      return []
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const renderMarkers = (map, data) => {
+    markersRef.current.forEach(({ marker, infowindow }) => {
+      marker.setMap(null)
+      infowindow.close()
+    })
+    markersRef.current = []
+
+    data.forEach(cafe => {
+      if (!cafe.lat || !cafe.lng) return
+
+      const marker = new window.naver.maps.Marker({
+        position: new window.naver.maps.LatLng(cafe.lat, cafe.lng),
+        map,
+        title: cafe.name,
+      })
+
+      const infowindow = new window.naver.maps.InfoWindow({
+        content: `
+          <div style="padding:10px 14px;min-width:160px">
+            <strong style="font-size:14px">${cafe.name}</strong>
+            <p style="color:#2563eb;font-size:18px;font-weight:700;margin:4px 0">
+              ${cafe.price ? cafe.price.toLocaleString() + '원' : '가격 정보 없음'}
+            </p>
+            <p style="color:#64748b;font-size:12px">${cafe.address ?? ''}</p>
+          </div>
+        `,
+      })
+
+      window.naver.maps.Event.addListener(marker, 'click', () => {
+        if (reportModeRef.current) return
+        infowindow.open(map, marker)
+        setSelectedCafe(cafe)
+      })
+
+      markersRef.current.push({ marker, infowindow })
+    })
   }
 
   useEffect(() => {
@@ -35,36 +87,14 @@ export default function App() {
     })
     mapInstanceRef.current = map
 
-    SAMPLE_CAFES.forEach(cafe => {
-      const marker = new window.naver.maps.Marker({
-        position: new window.naver.maps.LatLng(cafe.lat, cafe.lng),
-        map,
-        title: cafe.name,
-      })
-
-      const infowindow = new window.naver.maps.InfoWindow({
-        content: `
-          <div style="padding:10px 14px;min-width:160px">
-            <strong style="font-size:14px">${cafe.name}</strong>
-            <p style="color:#2563eb;font-size:18px;font-weight:700;margin:4px 0">${cafe.price.toLocaleString()}원</p>
-            <p style="color:#64748b;font-size:12px">${cafe.address}</p>
-          </div>
-        `,
-      })
-
-      window.naver.maps.Event.addListener(marker, 'click', () => {
-        if (reportModeRef.current) return
-        infowindow.open(map, marker)
-        setSelectedCafe(cafe)
-      })
-    })
-
     window.naver.maps.Event.addListener(map, 'click', (e) => {
       if (!reportModeRef.current) return
       setReportLocation({ lat: e.coord.lat(), lng: e.coord.lng() })
       setShowForm(true)
       setReportModeSync(false)
     })
+
+    fetchCafes().then(data => renderMarkers(map, data))
   }, [])
 
   const moveTo = (cafe) => {
@@ -119,6 +149,30 @@ export default function App() {
     setReportLocation(null)
   }
 
+  const handleSubmit = async () => {
+    if (!cafeName || !cafePrice) return
+    setSubmitting(true)
+    try {
+      await fetch(`${API}/cafes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: cafeName,
+          lat: reportLocation?.lat ?? 37.4979,
+          lng: reportLocation?.lng ?? 127.0276,
+          price: parseInt(cafePrice),
+        }),
+      })
+      handleFormClose()
+      const data = await fetchCafes()
+      renderMarkers(mapInstanceRef.current, data)
+    } catch (e) {
+      alert('제보 실패. 다시 시도해주세요.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -149,22 +203,31 @@ export default function App() {
 
       <section className="cafe-list">
         <div className="list-header">
-          <h2>주변 카페 ({SAMPLE_CAFES.length})</h2>
+          <h2>주변 카페 ({loading ? '...' : cafes.length})</h2>
           <button className="btn-report" onClick={handleReportClick}>+ 가격 제보</button>
         </div>
-        {SAMPLE_CAFES.sort((a, b) => a.price - b.price).map(cafe => (
-          <div
-            key={cafe.id}
-            className={`cafe-item ${selectedCafe?.id === cafe.id ? 'active' : ''}`}
-            onClick={() => moveTo(cafe)}
-          >
-            <div className="cafe-info">
-              <span className="cafe-name">{cafe.name}</span>
-              <span className="cafe-address">{cafe.address}</span>
+
+        {loading ? (
+          <div className="loading">카페 정보를 불러오는 중...</div>
+        ) : cafes.length === 0 ? (
+          <div className="loading">아직 등록된 카페가 없습니다.<br />첫 번째 제보자가 되어보세요!</div>
+        ) : (
+          cafes.map(cafe => (
+            <div
+              key={cafe.id}
+              className={`cafe-item ${selectedCafe?.id === cafe.id ? 'active' : ''}`}
+              onClick={() => moveTo(cafe)}
+            >
+              <div className="cafe-info">
+                <span className="cafe-name">{cafe.name}</span>
+                <span className="cafe-address">{cafe.address ?? '위치 정보 없음'}</span>
+              </div>
+              <span className="cafe-price">
+                {cafe.price ? cafe.price.toLocaleString() + '원' : '-'}
+              </span>
             </div>
-            <span className="cafe-price">{cafe.price.toLocaleString()}원</span>
-          </div>
-        ))}
+          ))
+        )}
       </section>
 
       {showForm && (
@@ -205,9 +268,10 @@ export default function App() {
               <button className="btn-cancel" onClick={handleFormClose}>취소</button>
               <button
                 className="btn-submit"
-                disabled={!cafeName || !cafePrice}
+                disabled={!cafeName || !cafePrice || submitting}
+                onClick={handleSubmit}
               >
-                제보하기
+                {submitting ? '제보 중...' : '제보하기'}
               </button>
             </div>
           </div>
