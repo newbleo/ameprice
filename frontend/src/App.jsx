@@ -150,7 +150,11 @@ export default function App() {
   }
 
   const handleSubmit = async () => {
-    if (!cafeName || !cafePrice) return
+    console.log('submit 시도:', { cafeName, cafePrice, API })
+    if (!cafeName || !cafePrice) {
+      console.log('guard 걸림 — 빈 값:', { cafeName, cafePrice })
+      return
+    }
     setSubmitting(true)
     try {
       await fetch(`${API}/cafes`, {
